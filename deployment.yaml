@@ -1,0 +1,18 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: srv-hello-world
+  namespace: default
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: srv-hello-world
+    spec:
+      containers:
+        - image: "dm848/srv-hello-world:v8"
+          imagePullPolicy: Always
+          name: srv-hello-world
+          ports:
+            - containerPort: 8888
