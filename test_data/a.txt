@@ -1,0 +1,19 @@
+{
+  consul: "consul-server:8500",
+  jobs: [
+    {
+      name: "testing-ok",
+      exec: "jolie main.ol",
+      port: 8080,
+      health: {
+        exec: "/usr/bin/curl -o /dev/null --fail -s http://localhost:8080/health",
+        interval: 10,
+        ttl: 10,
+        timeout: "5s"
+      },
+      tags: [
+        "platform-endpoint", "cache"
+      ]
+    }
+  ]
+}

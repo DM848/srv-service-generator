@@ -1,0 +1,19 @@
+{
+  consul: "consul-server:8500",
+  jobs: [
+    {
+      name: "{{ service.name }}",
+      exec: "jolie main.ol",
+      port: {{ service.port }},
+      health: {
+        exec: "/usr/bin/curl -o /dev/null --fail -s http://localhost:{{ service.port }}/health",
+        interval: 10,
+        ttl: 10,
+        timeout: "5s"
+      },
+      tags: [
+        {{ service.tags }}
+      ]
+    }
+  ]
+}
