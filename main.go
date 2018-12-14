@@ -212,7 +212,7 @@ func ProcessTmplFile(srv *service, tmpl []byte) []byte {
 
 // clone and update remote
 func cloneGitRepo(templateRepoURL, url string, service *service, token string) (repo *git.Repository, path string, err error) {
-	path = "./tmp/" + RandStringBytes(8) + "/srv-" + service.Name
+	path = "./tmp/" + RandStringBytes(8) + "-srv-" + service.Name
 	service.path = path
 	_ = os.MkdirAll(path, 0777)
 	fmt.Println(templateRepoURL)
@@ -224,8 +224,7 @@ func cloneGitRepo(templateRepoURL, url string, service *service, token string) (
 			Username: "dm848-jenkins", // yes, this can be anything except an empty string
 			Password: token,
 		},
-		URL:      templateRepoURL,
-		Progress: os.Stdout,
+		URL: templateRepoURL,
 	})
 	if err != nil {
 		return
@@ -403,7 +402,6 @@ func Setup() {
 			}
 		}
 	}
-
 
 	// service creator
 	d := NewDelegator(token)

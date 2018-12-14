@@ -23,15 +23,17 @@ type srvCreationStep struct {
 
 type serviceCreationStatus struct {
 	sync.RWMutex
-	Service             *service        `json:"service"`
-	Token               string          `json:"service_progress_token"` // to identify this creation
-	ValidatingService   srvCreationStep `json:"validating_service"`
-	CreatingGitHubRepo  srvCreationStep `json:"creating_git_hub_repo"`
+	Service            *service        `json:"service"`
+	Token              string          `json:"service_progress_token"` // to identify this creation
+	ValidatingService  srvCreationStep `json:"validating_service"`
+	CreatingGitHubRepo srvCreationStep `json:"creating_git_hub_repo"`
 	//BuildingDockerImage srvCreationStep `json:"building_docker_image"`
 	//PublishToDockerHub  srvCreationStep `json:"publish_to_docker_hub"`
 	//DeployingToK8s      srvCreationStep `json:"deploying_to_k8s"`
 	BindingJenkins srvCreationStep `json:"bindingJenkins"`
 	Done           bool            `json:"done"`
+	GitHubURL      string          `json:"github_url,omitempty"`
+	GatewayURI     string          `json:"gateway_uri,omitempty"`
 }
 
 const (
@@ -104,9 +106,21 @@ func (d *Delegator) shutdown() {
 }
 
 func (d *Delegator) worker() {
+	var open bool
+	var progress *serviceCreationStatus
 	for {
-		var open bool
-		var progress *serviceCreationStatus
+		if progress != nil && progress.Service.path != "" {
+			// TODO: check for errors and clean up the github repo and cloned directory
+			err := os.RemoveAll(progress.Service.path)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+
+			_, err = d.github.client.Repositories.Delete(context.Background(), Organisation, ServicePrefix + progress.Service.Name)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+		}
 		select {
 		case progress, open = <-d.jobs:
 			if !open {
@@ -176,6 +190,13 @@ func (d *Delegator) worker() {
 		progress.BindingJenkins.Success = true
 		progress.BindingJenkins.Message = "jenkins is not yet supported"
 		progress.Done = true
+
+		// add github url if all way ok
+		if progress.CreatingGitHubRepo.Success == true {
+			progress.GitHubURL = progress.Service.getSrvRepoURL()
+			progress.GatewayURI = "/api/" + progress.Service.Name
+		}
+
 		progress.Unlock()
 
 		// TODO jenkins
