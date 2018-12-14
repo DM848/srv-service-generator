@@ -1,0 +1,35 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ service.name }}
+  namespace: default
+spec:
+  replicas: {{ service.replicas }}
+  template:
+    metadata:
+      labels:
+        app: {{ service.name }}
+    spec:
+      containers:
+        - image: "dm848/srv-{{ service.name }}:v1"
+          imagePullPolicy: Always
+          name: {{ service.name }}
+          ports:
+            - containerPort: {{ service.port }}
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  name: {{ service.name }}
+  namespace: "default"
+  labels:
+    app: {{ service.name }}
+spec:
+  ports:
+  - protocol: "TCP"
+    port: {{ service.port }}
+    targetPort: {{ service.port }}
+  selector:
+    app: {{ service.name }}
+  type: "ClusterIP"
