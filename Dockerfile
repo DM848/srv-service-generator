@@ -26,6 +26,6 @@ RUN export CONTAINERPILOT_CHECKSUM=84642c13683ddae6ccb63386e6160e8cb2439c26 && \
 COPY containerpilot.json5 /etc/containerpilot.json5
 ENV CONTAINERPILOT=/etc/containerpilot.json5
 
-ENV WEB_SERVER_PORT {{ service.port }}
-EXPOSE {{ service.port }}
+ENV WEB_SERVER_PORT 5678
+EXPOSE 5678
 CMD ["/bin/containerpilot"]

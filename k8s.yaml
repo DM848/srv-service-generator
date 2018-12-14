@@ -2,34 +2,34 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: {{ service.name }}
+  name: service-generator
   namespace: default
 spec:
-  replicas: {{ service.replicas }}
+  replicas: 2
   template:
     metadata:
       labels:
-        app: {{ service.name }}
+        app: service-generator
     spec:
       containers:
-        - image: "dm848/srv-{{ service.name }}:v1"
+        - image: "dm848/srv-service-generator:v1"
           imagePullPolicy: Always
-          name: {{ service.name }}
+          name: service-generator
           ports:
-            - containerPort: {{ service.port }}
+            - containerPort: 5678
 ---
 apiVersion: "v1"
 kind: "Service"
 metadata:
-  name: {{ service.name }}
+  name: service-generator
   namespace: "default"
   labels:
-    app: {{ service.name }}
+    app: service-generator
 spec:
   ports:
   - protocol: "TCP"
-    port: {{ service.port }}
-    targetPort: {{ service.port }}
+    port: 5678
+    targetPort: 5678
   selector:
-    app: {{ service.name }}
+    app: service-generator
   type: "ClusterIP"

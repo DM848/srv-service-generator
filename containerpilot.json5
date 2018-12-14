@@ -2,11 +2,11 @@
   consul: "consul-server:8500",
   jobs: [
     {
-      name: "{{ service.name }}",
+      name: "service-generator",
       exec: "/server/webserver",
-      port: {{ service.port }},
+      port: 5678,
       health: {
-        exec: "/usr/bin/curl -o /dev/null --fail -s http://localhost:{{ service.port }}/health",
+        exec: "/usr/bin/curl -o /dev/null --fail -s http://localhost:5678/health",
         interval: 3,
         ttl: 10
       }
