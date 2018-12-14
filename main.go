@@ -1,4 +1,4 @@
-package main
+package srvgen
 
 import (
 	"context"
@@ -45,21 +45,27 @@ func RandStringBytes(n int) string {
 }
 
 func NewService(name string) *service {
-	return &service{
+	srv := &service{
 		Name:      name,
-		Replicas:  1,
 		CreatedAt: time.Now(),
-		Port:      3000,
-		Lang:      "jolie",
 	}
+	setupDefaultService(srv)
+	return srv
+}
+
+func setupDefaultService(srv *service) {
+	srv.Replicas = 1
+	srv.Port = 8888
+	srv.Lang = "jolie"
 }
 
 type service struct {
 	Name      string    `json:"name"`
 	Port      uint64    `json:"port"`
-	Creator   string    `json:"creator"`
+	Author    string    `json:"author"`
 	CreatedAt time.Time `json:"createdAt"`
 	Desc      string    `json:"desc"`
+	Public    bool      `json:"public"`
 	Tags      []string  `json:"tags"`
 	Replicas  uint64    `json:"replicas"`
 	Lang      string    `json:"lang"` // must match a repo suffix
@@ -67,37 +73,56 @@ type service struct {
 	path string
 }
 
-func (s *service) validate(g *GitHub) bool {
-	return s.validName() && s.validLang(g)
+func (s *service) validate(g *GitHub) (err error) {
+	if err = s.validateName(); err != nil {
+		return
+	}
+	if err = s.validateLang(g); err != nil {
+		return
+	}
+	if err = s.validateServiceNameAvailable(g); err != nil {
+		return
+	}
+
+	return
 }
 
-func (s *service) validName() bool {
-	return len(s.Name) >= 2
+func (s *service) validateName() error {
+	if len(s.Name) < 2 {
+		return errors.New("service name must be at least two character")
+	}
+
+	return nil
 }
 
 // valid Lang validates that the language exists as a suffix to one of the repositories of the organisation
-func (s *service) validLang(g *GitHub) bool {
-	logger, _ := zap.NewProduction()
-	defer logger.Sync() // flushes buffer, if any
-	sugar := logger.Sugar()
-
-	yes, err := g.hasRepository(ServiceTmplPrefix + s.Name)
+func (s *service) validateLang(g *GitHub) error {
+	_, err := g.hasRepository(ServiceTmplPrefix + s.Lang)
 	if err != nil {
-		sugar.Panic("repository check failed",
-			"err", err.Error(),
-		)
-		return false
+		return errors.New(err.Error() + " - Must have syntax: " + ServiceTmplPrefix + "<LANGUAGE>")
 	}
 
-	// TODO: this could really need some more checks..
-	for _, name := range []string{"go", "golang", "jolie", "java", "csharp", "c-sharp", "cpp", "c", "js", "javascript", "node", "nodejs", "python", "pascal"} {
+	// TODO
+	err = errors.New("language is not supported. Remember Java => java8, go => golang, js => javascript, etcetera")
+	for _, name := range []string{"golang", "jolie", "java8", "csharp", "cpp", "c", "javascript", "nodejs", "python", "pascal"} {
 		if s.Lang == name {
-			yes = true
+			err = nil
 			break
 		}
 	}
 
-	return yes
+	return err
+}
+
+// valid Lang validates that the language exists as a suffix to one of the repositories of the organisation
+func (s *service) validateServiceNameAvailable(g *GitHub) error {
+	_, err := g.hasRepository(ServicePrefix + s.Name)
+	if err == nil {
+		err = errors.New("repository exists with given service name already exists")
+	} else {
+		err = nil
+	}
+	return err
 }
 
 func (s *service) getTmplRepoURL() string {
@@ -106,23 +131,6 @@ func (s *service) getTmplRepoURL() string {
 
 func (s *service) getSrvRepoURL() string {
 	return GitHubURL + Organisation + "/" + ServicePrefix + s.Name
-}
-
-type srvCreationStep struct {
-	Success bool   `json:"success"`
-	Done    bool   `json:"Done"`
-	Error   string `json:"error"`
-}
-
-type serviceCreationStatus struct {
-	Service             *service        `json:"service"`
-	Token               string          `json:"token"` // to identify this creation
-	ValidatingService   srvCreationStep `json:"validating_service"`
-	CreatingGitHubRepo  srvCreationStep `json:"creating_git_hub_repo"`
-	BuildingDockerImage srvCreationStep `json:"building_docker_image"`
-	PublishToDockerHub  srvCreationStep `json:"publish_to_docker_hub"`
-	DeployingToK8s      srvCreationStep `json:"deploying_to_k8s"`
-	//Done
 }
 
 func buildDockerImage() {
@@ -134,7 +142,7 @@ func dockerHubLogin() {
 
 }
 
-func ProcessTmplFolder(srv *service, path string) {
+func ProcessTmplFolder(srv *service, path string) error {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync() // flushes buffer, if any
 	sugar := logger.Sugar()
@@ -145,12 +153,13 @@ func ProcessTmplFolder(srv *service, path string) {
 			"path", path,
 			"err", err.Error(),
 		)
+		return err
 	}
 
 	for _, f := range files {
 		file := path + "/" + f.Name()
 		if f.IsDir() {
-			ProcessTmplFolder(srv, file)
+			_ = ProcessTmplFolder(srv, file)
 			continue
 		}
 
@@ -174,6 +183,8 @@ func ProcessTmplFolder(srv *service, path string) {
 			)
 		}
 	}
+
+	return nil
 }
 
 func ProcessTmplFile(srv *service, tmpl []byte) []byte {
@@ -182,7 +193,7 @@ func ProcessTmplFile(srv *service, tmpl []byte) []byte {
 	content = strings.Replace(content, "{{ service.name }}", srv.Name, -1)
 	content = strings.Replace(content, "{{ service.name.Capitalize() }}", strings.Title(srv.Name), -1)
 	content = strings.Replace(content, "{{ service.port }}", strconv.FormatUint(srv.Port, 10), -1)
-	content = strings.Replace(content, "{{ service.creator }}", srv.Creator, -1)
+	content = strings.Replace(content, "{{ service.creator }}", srv.Author, -1)
 	content = strings.Replace(content, "{{ service.createdAt }}", srv.CreatedAt.String(), -1)
 	content = strings.Replace(content, "{{ service.desc }}", srv.Desc, -1)
 
@@ -241,34 +252,26 @@ func cloneGitRepo(templateRepoURL, url string, service *service, token string) (
 	return
 }
 
-func addCommitPush(repo *git.Repository, token string) {
+func addCommitPush(repo *git.Repository, auth *http.BasicAuth) error {
 	w, e := repo.Worktree()
 	if e != nil {
-		panic(e)
+		return e
 	}
-	h, e := w.Commit("created service files", &git.CommitOptions{
+	_, e = w.Commit("created service files", &git.CommitOptions{
 		All: true,
 		Author: &object.Signature{
-			Name:  "Anders Fylling",
-			Email: "fyllingz@gmail.com",
+			Name:  "service-generator dm848-jenkins",
+			Email: "deep-name-7269@opayq.com",
 			When:  time.Now(),
 		},
 	})
 	if e != nil {
-		panic(e)
+		return e
 	}
 
-	fmt.Println("hash: " + h.String())
-
-	err := repo.Push(&git.PushOptions{
-		Auth: &http.BasicAuth{
-			Username: "dm848-jenkins", // yes, this can be anything except an empty string
-			Password: token,
-		},
+	return repo.Push(&git.PushOptions{
+		Auth: auth,
 	})
-	if err != nil {
-		panic(err)
-	}
 }
 
 func NewConsul() (consul *Consul, err error) {
@@ -328,22 +331,17 @@ func (g *GitHub) serviceNameAvail(name string) (available bool, err error) {
 }
 
 func (g *GitHub) hasRepository(name string) (yes bool, err error) {
-	logger, _ := zap.NewProduction()
-	defer logger.Sync() // flushes buffer, if any
-	sugar := logger.Sugar()
-
 	opt := &github.RepositoryListByOrgOptions{Type: "public"}
 	repos, _, err := g.client.Repositories.ListByOrg(context.Background(), Organisation, opt)
 	if err != nil {
-		sugar.Panic("failed to fetch repositories ",
-			"err", err.Error(),
-		)
 		return
 	}
 
+	err = errors.New("no repository for given name exists")
 	for _, repo := range repos {
 		if name == *repo.Name {
 			yes = true
+			err = nil
 			break
 		}
 	}
@@ -376,16 +374,7 @@ func cmd(cmd string) ([]byte, error) {
 	return exec.Command("sh", "-c", cmd).Output()
 }
 
-func main() {
-
-	srv := NewService("service-generator")
-	srv.Desc = "Generates services with built-in service discovery and health checking based on templates"
-	srv.Creator = "Anders Fylling"
-	srv.Lang = "golang"
-	srv.Port = 5678
-	srv.Replicas = 2
-	srv.Tags = []string{"platform-endpoint"}
-
+func Setup() {
 	token := os.Getenv("GITHUB_ACCESS_TOKEN")
 	docker_pwd := os.Getenv("DOCKER_PWD")
 	if docker_pwd == "" || token == "" {
@@ -415,41 +404,20 @@ func main() {
 		}
 	}
 
-	g, err := NewGitHub()
+
+	// service creator
+	d := NewDelegator(token)
+
+	var err error
+	d.github, err = NewGitHub()
 	if err != nil {
 		panic(err)
 	}
 
-	// validate service
-	if !srv.validate(g) {
-		panic("service is invalid...")
-	}
-
-	err = g.authenticate(token)
+	err = d.github.authenticate(token)
 	if err != nil {
 		panic(err)
 	}
 
-	// step: create github repo
-	// it was checked in prev step (validate) if the repo name was taken
-	// create an empty github repo
-	repoData, err := g.createRepo(context.Background(), srv)
-	if err != nil {
-		panic(err)
-	}
-
-	// clone repo
-	repo, path, err := cloneGitRepo(srv.getTmplRepoURL(), *repoData.CloneURL, srv, token)
-	if err != nil {
-		panic("eh: " + err.Error())
-	}
-
-	// update the tmpl files to service related files
-	ProcessTmplFolder(srv, path)
-
-	// add, commit and push
-	addCommitPush(repo, token)
-
-	// TODO jenkins
-	runServer()
+	runServer(d)
 }

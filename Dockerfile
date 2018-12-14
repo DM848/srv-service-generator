@@ -4,7 +4,7 @@ WORKDIR /app
 COPY . /app
 
 RUN go test ./...
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o webserver .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o webserver cmd/server/main.go
 
 FROM alpine:3.8
 

@@ -1,4 +1,4 @@
-module main
+module srvgen
 
 require (
 	github.com/google/go-github/v20 v20.0.0
