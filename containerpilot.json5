@@ -1,5 +1,5 @@
 {
-  consul: "consul-server:8500",
+  consul: "consul-node:8500",
   jobs: [
     {
       name: "service-generator",
@@ -9,7 +9,10 @@
         exec: "/usr/bin/curl -o /dev/null --fail -s http://localhost:5678/health",
         interval: 3,
         ttl: 10
-      }
+      },
+      tags: [
+        "platform-endpoint"
+      ]
     }
   ]
 }

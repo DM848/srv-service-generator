@@ -6,7 +6,7 @@ COPY . /app
 RUN go test ./...
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o webserver cmd/server/main.go
 
-FROM dm848/consul-service
+FROM dm848/consul-service:v1
 
 WORKDIR /server
 COPY --from=builder /app/webserver .

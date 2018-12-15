@@ -275,7 +275,9 @@ func addCommitPush(repo *git.Repository, auth *http.BasicAuth) error {
 
 func NewConsul() (consul *Consul, err error) {
 	consul = &Consul{}
-	consul.client, err = consulapi.NewClient(consulapi.DefaultConfig())
+	config := consulapi.DefaultConfig()
+	config.Address = "consul-node:8500"
+	consul.client, err = consulapi.NewClient(config)
 	return
 }
 
