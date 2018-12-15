@@ -2,6 +2,7 @@ package srvgen
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -28,7 +29,7 @@ const (
 	ServicePrefix     = "srv-"
 	ServiceTmplPrefix = "template-" + ServicePrefix
 
-	PublicServiceTag  = "platform-endpoint"
+	PublicServiceTag = "platform-endpoint"
 
 	ConsulGitHubUser        = "GITHUB_USER"
 	ConsulDockerHubPassword = "DOCKER_HUB_PWD"
@@ -196,8 +197,10 @@ func ProcessTmplFile(srv *service, tmpl []byte) []byte {
 	content = strings.Replace(content, "{{ service.name.Capitalize() }}", strings.Title(srv.Name), -1)
 	content = strings.Replace(content, "{{ service.port }}", strconv.FormatUint(srv.Port, 10), -1)
 	content = strings.Replace(content, "{{ service.creator }}", srv.Author, -1)
+	content = strings.Replace(content, "{{ service.creator.Capitalize() }}", strings.Title(srv.Author), -1)
 	content = strings.Replace(content, "{{ service.createdAt }}", srv.CreatedAt.String(), -1)
 	content = strings.Replace(content, "{{ service.desc }}", srv.Desc, -1)
+	content = strings.Replace(content, "{{ service.description }}", srv.Desc, -1)
 
 	if srv.Public {
 		endpoint := false
@@ -220,7 +223,7 @@ func ProcessTmplFile(srv *service, tmpl []byte) []byte {
 	if len(tags) > 2 {
 		tags = tags[:len(tags)-2]
 	}
-	content = strings.Replace(content, "{{ service.tags }}", tags, -1)
+	content = strings.Replace(content, "{{ service.tags }}", strings.ToLower(tags), -1)
 	content = strings.Replace(content, "{{ service.replicas }}", strconv.FormatUint(srv.Replicas, 10), -1)
 
 	return []byte(content)
@@ -309,6 +312,8 @@ func (c *Consul) GetGitHubAccessToken() (token string, err error) {
 		return
 	}
 	token = string(pair.Value)
+	bytes, _ := base64.StdEncoding.DecodeString(token)
+	token = string(bytes)
 	if token == "" {
 		err = errors.New("missing github access token in Consul")
 	}
@@ -324,6 +329,8 @@ func (c *Consul) GetDockerPassword() (password string, err error) {
 		return
 	}
 	password = string(pair.Value)
+	bytes, _ := base64.StdEncoding.DecodeString(password)
+	password = string(bytes)
 	if password == "" {
 		err = errors.New("missing github access token in Consul")
 	}

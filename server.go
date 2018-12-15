@@ -116,7 +116,7 @@ func (d *Delegator) worker() {
 				fmt.Println(err.Error())
 			}
 
-			_, err = d.github.client.Repositories.Delete(context.Background(), Organisation, ServicePrefix + progress.Service.Name)
+			_, err = d.github.client.Repositories.Delete(context.Background(), Organisation, ServicePrefix+progress.Service.Name)
 			if err != nil {
 				fmt.Println(err.Error())
 			}

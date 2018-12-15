@@ -1,6 +1,8 @@
 package main
 
-import "srvgen"
+import (
+	"srvgen"
+)
 
 func main() {
 	srvgen.Setup()
