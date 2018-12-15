@@ -28,6 +28,8 @@ const (
 	ServicePrefix     = "srv-"
 	ServiceTmplPrefix = "template-" + ServicePrefix
 
+	PublicServiceTag  = "platform-endpoint"
+
 	ConsulGitHubUser        = "GITHUB_USER"
 	ConsulDockerHubPassword = "DOCKER_HUB_PWD"
 	ConsulGitHubAccessToken = "GITHUB_ACCESS_TOKEN"
@@ -196,6 +198,20 @@ func ProcessTmplFile(srv *service, tmpl []byte) []byte {
 	content = strings.Replace(content, "{{ service.creator }}", srv.Author, -1)
 	content = strings.Replace(content, "{{ service.createdAt }}", srv.CreatedAt.String(), -1)
 	content = strings.Replace(content, "{{ service.desc }}", srv.Desc, -1)
+
+	if srv.Public {
+		endpoint := false
+		for i := range srv.Tags {
+			endpoint = srv.Tags[i] == PublicServiceTag
+			if endpoint {
+				break
+			}
+		}
+
+		if !endpoint {
+			srv.Tags = append(srv.Tags, PublicServiceTag)
+		}
+	}
 
 	tags := ""
 	for i := range srv.Tags {
