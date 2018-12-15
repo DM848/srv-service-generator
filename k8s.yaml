@@ -5,7 +5,7 @@ metadata:
   name: service-generator
   namespace: default
 spec:
-  replicas: 2
+  replicas: 1
   template:
     metadata:
       labels:
