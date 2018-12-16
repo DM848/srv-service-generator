@@ -88,7 +88,6 @@ type Delegator struct {
 
 	token  string
 	github *GitHub
-	consul *Consul
 
 	gitAuth *httpgit.BasicAuth
 }

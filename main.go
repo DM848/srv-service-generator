@@ -2,7 +2,6 @@ package srvgen
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -14,7 +13,6 @@ import (
 	"time"
 
 	"github.com/google/go-github/v20/github"
-	consulapi "github.com/hashicorp/consul/api"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"gopkg.in/src-d/go-git.v4"
@@ -292,52 +290,6 @@ func addCommitPush(repo *git.Repository, auth *http.BasicAuth) error {
 	})
 }
 
-func NewConsul() (consul *Consul, err error) {
-	consul = &Consul{}
-	config := consulapi.DefaultConfig()
-	config.Address = "consul-node:8500"
-	consul.client, err = consulapi.NewClient(config)
-	return
-}
-
-type Consul struct {
-	client *consulapi.Client
-}
-
-func (c *Consul) GetGitHubAccessToken() (token string, err error) {
-	// Get a handle to the KV API
-	kv := c.client.KV()
-	pair, _, err := kv.Get(ConsulGitHubAccessToken, nil)
-	if err != nil {
-		return
-	}
-	token = string(pair.Value)
-	bytes, _ := base64.StdEncoding.DecodeString(token)
-	token = string(bytes)
-	if token == "" {
-		err = errors.New("missing github access token in Consul")
-	}
-
-	return
-}
-
-func (c *Consul) GetDockerPassword() (password string, err error) {
-	// Get a handle to the KV API
-	kv := c.client.KV()
-	pair, _, err := kv.Get(ConsulDockerHubPassword, nil)
-	if err != nil {
-		return
-	}
-	password = string(pair.Value)
-	bytes, _ := base64.StdEncoding.DecodeString(password)
-	password = string(bytes)
-	if password == "" {
-		err = errors.New("missing github access token in Consul")
-	}
-
-	return
-}
-
 func NewGitHub() (g *GitHub, err error) {
 	g = &GitHub{}
 	g.client = github.NewClient(nil)
@@ -399,29 +351,26 @@ func cmd(cmd string) ([]byte, error) {
 }
 
 func Setup() {
-	token := os.Getenv("GITHUB_ACCESS_TOKEN")
-	docker_pwd := os.Getenv("DOCKER_PWD")
+	token := os.Getenv(ConsulGitHubAccessToken)
+	docker_pwd := os.Getenv(ConsulDockerHubPassword)
 	if docker_pwd == "" || token == "" {
-		consul, err := NewConsul()
-		if err != nil {
-			panic(err)
-		}
-
 		if docker_pwd == "" {
-			docker_pwd, err = consul.GetDockerPassword()
+			bytes, err := GetConsulKey(ConsulDockerHubPassword)
 			if err != nil {
 				panic(err)
 			}
+			docker_pwd = string(bytes)
 			if docker_pwd == "" {
 				panic("missing docker hub password for user dm848jenkins")
 			}
 		}
 
 		if token == "" {
-			token, err = consul.GetGitHubAccessToken()
+			bytes, err := GetConsulKey(ConsulGitHubAccessToken)
 			if err != nil {
 				panic(err)
 			}
+			token = string(bytes)
 			if token == "" {
 				panic("missing github access token for user dm848-jenkins")
 			}
