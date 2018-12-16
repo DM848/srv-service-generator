@@ -193,7 +193,10 @@ func (d *Delegator) worker() {
 		// add github url if all way ok
 		if progress.CreatingGitHubRepo.Success == true {
 			progress.GitHubURL = progress.Service.getSrvRepoURL()
-			progress.GatewayURI = "/api/" + progress.Service.Name
+
+			if progress.Service.Public {
+				progress.GatewayURI = "/api/" + progress.Service.Name
+			}
 		}
 
 		progress.Unlock()

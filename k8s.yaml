@@ -12,7 +12,7 @@ spec:
         app: service-generator
     spec:
       containers:
-        - image: "dm848/srv-service-generator:v1"
+        - image: "dm848/srv-service-generator:v1.0.1"
           imagePullPolicy: Always
           name: service-generator
           ports:
