@@ -188,17 +188,38 @@ func ProcessTmplFolder(srv *service, path string) error {
 	return nil
 }
 
+func removeNonLetters(s string) string {
+	return strings.Map(
+		func(r rune) rune {
+			if (r >= 65 && r <= 90) || (r >= 97 && r <= 122) {
+				return r
+			}
+			return -1
+		},
+		s,
+	)
+}
+
+func StringProcessor(content, id, val string) string {
+	content = strings.Replace(content, "{{ service."+id+" }}", val, -1)
+	content = strings.Replace(content, "{{ service."+id+".Capitalize() }}", strings.Title(val), -1)
+	content = strings.Replace(content, "{{ service."+id+".LettersOnly() }}", removeNonLetters(val), -1)
+	content = strings.Replace(content, "{{ service."+id+".Capitalize().LettersOnly() }}", removeNonLetters(strings.Title(val)), -1)
+	content = strings.Replace(content, "{{ service."+id+".LettersOnly().Capitalize() }}", removeNonLetters(strings.Title(val)), -1)
+
+	return content
+}
+
 func ProcessTmplFile(srv *service, tmpl []byte) []byte {
 	content := string(tmpl)
 
-	content = strings.Replace(content, "{{ service.name }}", srv.Name, -1)
-	content = strings.Replace(content, "{{ service.name.Capitalize() }}", strings.Title(srv.Name), -1)
+	content = StringProcessor(content, "name", srv.Name)
+	content = StringProcessor(content, "author", srv.Author)
+	content = StringProcessor(content, "desc", srv.Desc)
+	content = StringProcessor(content, "description", srv.Desc)
+
 	content = strings.Replace(content, "{{ service.port }}", strconv.FormatUint(srv.Port, 10), -1)
-	content = strings.Replace(content, "{{ service.creator }}", srv.Author, -1)
-	content = strings.Replace(content, "{{ service.creator.Capitalize() }}", strings.Title(srv.Author), -1)
 	content = strings.Replace(content, "{{ service.createdAt }}", srv.CreatedAt.String(), -1)
-	content = strings.Replace(content, "{{ service.desc }}", srv.Desc, -1)
-	content = strings.Replace(content, "{{ service.description }}", srv.Desc, -1)
 
 	if srv.Public {
 		endpoint := false
