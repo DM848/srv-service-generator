@@ -4,4 +4,4 @@ services:
 
   srv-service-generator:
     build: .
-    image: dm848/srv-service-generator:v1.1.0
+    image: dm848/srv-service-generator:v1.1.1

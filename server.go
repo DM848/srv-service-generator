@@ -64,6 +64,7 @@ func (j *JSend) write(w http.ResponseWriter) {
 		body = []byte(`{"status":"error","message":"unable to correctly parse response on server"}`)
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(body)
 }
 
