@@ -29,3 +29,7 @@ You must provide the "namme" and "author" fields. Public is optional, but must b
   "lang": "jolie", // programming language (must match a template repo suffix - [golang])
   "tags": [] // js array of string tags. These can be seen by other services.
 ```
+## Ednpoints
+POST `/service` for creating a new service. In the JSON, you will see a progress token in the body which must be added as a header if you want to query the `/progress` endpoint.
+
+GET `/progress` gives you progress over the different steps executed/executing/or about to be executed in order to create the service.
